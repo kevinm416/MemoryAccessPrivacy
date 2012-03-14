@@ -13,7 +13,12 @@ def parse_reference(line):
     line = line.lstrip(" ")
     ref_type = line[0]
     ref_addr, ref_length = line[1:].lstrip().split(",", 2)
-    return (ref_type, int(ref_addr, 16), int(ref_length, 10))
+    # If there is no number assume 1
+    if ref_length:
+        ref_int = int(ref_length, 10)
+    else:
+        ref_int = 1
+    return (ref_type, int(ref_addr, 16), ref_int)
 
 def generate_accesses(reference, offset_bits=6, make_repeats=False):
     """
@@ -126,14 +131,14 @@ class NWayCache(object):
         """
         index = address & self.index_mask
         block_id = address & self.id_mask
-        print "----------"
-        print "%08x,addr" % address
-        print "%08x,index" % index
-        print "%08x,tag" % (address & self.tag_mask)
-        print "%08x,block2" % ((address & self.tag_mask) | index)
-        print "%08x,block" % block_id
+        #sys.stderr.write("----------")
+        #sys.stderr.write("%08x,addr" % address)
+        #sys.stderr.write("%08x,index" % index)
+        #sys.stderr.write("%08x,tag" % (address & self.tag_mask))
+        #sys.stderr.write("%08x,block2" % ((address & self.tag_mask) | index))
+        ##sys.stderr.write("%08x,block" % block_id)
         cache_set, present = self.lookup_block(address)
-        print "----------"
+        #sys.stderr.write("----------")
         if not present:
             #Should the read happen before any write-backs, or after?
             self.parent.read(block_id)
@@ -148,10 +153,10 @@ class NWayCache(object):
 
 class RAM(object):
     def read(self, address):
-        sys.stdout.write("R %08x\n" % address)
+        sys.stdout.write("R 0x%08x\n" % address)
 
     def write(self, address):
-        sys.stdout.write("W %8x\n")
+        sys.stdout.write("W 0x%08x\n" % address)
 
 class LRUPolicy(object):
     def __init__(self):
@@ -176,6 +181,46 @@ class LRUPolicy(object):
 #    def __init__(self, n):
 #        self.n = n
 #        self.
+
+class NehalemCache(object):
+    """ Nehalem Specs
+    block size 64 bytes = 0x40
+    L1 32 KB Instruction Cache -> 512 entries              O:6
+       32 KB Data Cache        -> 512 entries              O:6
+    L2 256 KB Unified Cache    -> 4096 entries   T:19 I:7  O:6
+    L3 8192 KB Unified Cache   -> 131072 entries T:14 I:12 O:6 
+    """
+    def __init__(self):
+        self.total_bits = 32
+        self.offset_bits = 6
+        self.L1I_cache = NWayCache(4, self.total_bits - 7 - self.offset_bits, 7, self.offset_bits,
+                              LRUPolicy())
+        self.L1D_cache = NWayCache(8, self.total_bits - 6 - self.offset_bits, 6, self.offset_bits,
+                              LRUPolicy())
+
+        self.L2_cache = NWayCache(8, self.total_bits - 12 - self.offset_bits, 12, self.offset_bits,
+                             LRUPolicy())
+
+        #The replacement policy for L3 is not disclosed in the textbook...
+        self.L3_cache = NWayCache(16, self.total_bits - 17 - self.offset_bits, 17, self.offset_bits,
+                             LRUPolicy())
+
+        self.ram = RAM()
+        
+        self.L1I_cache.set_parent(self.L2_cache)
+        self.L1D_cache.set_parent(self.L2_cache)
+        self.L2_cache.set_parent(self.L3_cache)
+        self.L3_cache.set_parent(self.ram)
+    
+    def access(self, ref):
+        for (op, addr) in generate_accesses(ref, self.offset_bits, False):
+            #sys.stderr.write("%s %08x\n" % (op, addr))
+            if op == "I":
+                self.L1I_cache.read(addr)
+            elif op == "R":
+                self.L1D_cache.read(addr)
+            else:
+                self.L1D_cache.write(addr)
 
 if __name__ == "__main__":
     total_bits = 32
@@ -206,7 +251,7 @@ if __name__ == "__main__":
             continue
         ref = parse_reference(line)
         for (op, addr) in generate_accesses(ref, offset_bits, False):
-            print op, "%08x" % addr
+            #print op, "%08x" % addr
             if op == "I":
                 L1I_cache.read(addr)
             elif op == "R":
