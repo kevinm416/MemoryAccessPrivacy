@@ -10,7 +10,9 @@ def parse_reference(line):
     >>> parse_reference(" L 0421dbe0,8")
     ('L', 69327840, 8)
     """
-    ref_type, ref_addr, ref_length = line.lstrip(" ").split(",")
+    line = line.lstrip(" ")
+    ref_type = line[0]
+    ref_addr, ref_length = line[1:].lstrip().split(",", 2)
     return (ref_type, int(ref_addr, 16), int(ref_length, 10))
 
 def generate_accesses(reference, offset_bits=6, make_repeats=False):
@@ -126,6 +128,8 @@ class NWayCache(object):
         block_id = address & self.id_mask
         cache_set, present = self.lookup_block(address)
         if not present:
+            #Should the read happen before any write-backs, or after?
+            self.parent.read(block_id)
             if len(cache_set) == self.associativity:
                 evicted = self.policy.evict(cache_set)
                 cache_set.remove(evicted)
@@ -134,3 +138,71 @@ class NWayCache(object):
                     self.write_back(evicted)
             cache_set.add(block_id)
         self.policy.touch(block_id)
+
+class RAM(object):
+    def read(self, address):
+        sys.stdout.write("R %08x\n" % address)
+
+    def write(self, address):
+        sys.stdout.write("W %8x\n")
+
+class LRUPolicy(object):
+    def __init__(self):
+        self.access_list = []
+
+    def touch(self, item):
+        if item in self.access_list:
+            index = self.access_list.index(item)
+            self.access_list.append(self.access_list.pop(index))
+        else:
+            self.access_list.append(item)
+
+    def evict(self, choices):
+        for item in self.access_list:
+            if item in choices:
+                self.access_list.remove(item)
+                return item
+        else:
+            return list(choices)[0]
+
+#class ClockPolicy(object):
+#    def __init__(self, n):
+#        self.n = n
+#        self.
+
+if __name__ == "__main__":
+    total_bits = 32
+    offset_bits = 6
+
+    L1I_cache = NWayCache(4, total_bits - 7 - offset_bits, 7, offset_bits,
+                          LRUPolicy())
+    L1D_cache = NWayCache(8, total_bits - 6 - offset_bits, 6, offset_bits,
+                          LRUPolicy())
+
+    L2_cache = NWayCache(8, total_bits - 12 - offset_bits, 12, offset_bits,
+                         LRUPolicy())
+
+    #The replacement policy for L3 is not disclosed in the textbook...
+    L3_cache = NWayCache(16, total_bits - 17 - offset_bits, 17, offset_bits,
+                         LRUPolicy())
+
+    ram = RAM()
+    
+    
+    L1I_cache.set_parent(L2_cache)
+    L1D_cache.set_parent(L2_cache)
+    L2_cache.set_parent(L3_cache)
+    L3_cache.set_parent(ram)
+
+    for line in sys.stdin:
+        if line.startswith("=="):
+            continue
+        ref = parse_reference(line)
+        for (op, addr) in generate_accesses(ref, offset_bits, False):
+            if op == "I":
+                L1I_cache.read(addr)
+            elif op == "R":
+                L1D_cache.read(addr)
+            else:
+                L1D_cache.write(addr)
+
