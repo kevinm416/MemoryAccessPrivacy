@@ -62,13 +62,13 @@ class NWayCache(object):
 
         self.tag_mask = 0
         for i in xrange(tag_bits):
-            self.tag_mask |= 1
-        self.tag_mask << (offset_bits + index_bits)
+            self.tag_mask |= 1 << i
+        self.tag_mask <<= (offset_bits + index_bits)
 
         self.index_mask = 0
         for i in xrange(index_bits):
             self.index_mask |= 1 << i
-        self.index_mask << offset_bits
+        self.index_mask <<= offset_bits
 
         self.id_mask = self.tag_mask | self.index_mask
 
@@ -126,7 +126,14 @@ class NWayCache(object):
         """
         index = address & self.index_mask
         block_id = address & self.id_mask
+        print "----------"
+        print "%08x,addr" % address
+        print "%08x,index" % index
+        print "%08x,tag" % (address & self.tag_mask)
+        print "%08x,block2" % ((address & self.tag_mask) | index)
+        print "%08x,block" % block_id
         cache_set, present = self.lookup_block(address)
+        print "----------"
         if not present:
             #Should the read happen before any write-backs, or after?
             self.parent.read(block_id)
@@ -199,6 +206,7 @@ if __name__ == "__main__":
             continue
         ref = parse_reference(line)
         for (op, addr) in generate_accesses(ref, offset_bits, False):
+            print op, "%08x" % addr
             if op == "I":
                 L1I_cache.read(addr)
             elif op == "R":
