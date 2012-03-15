@@ -11,6 +11,17 @@ def pad(iterable, length, padding=''):
         count += 1
         yield padding
 
+def alternate(it1, it2):
+    l1 = len(it1)
+    l2 = len(it2)
+    for count, (i1, i2) in enumerate(zip(it1, it2)):
+        yield i1
+        yield i2
+    longer = (it1, it2)[l1 < l2]
+    while count < max(l1, l2) - 1:
+        count += 1
+        yield longer[count]
+
 ### Nehalem Specs
 # block size 64 bytes = 0X40
 # L1 32 KB Instruction Cache -> 512 entries              O:6
@@ -40,7 +51,8 @@ class TestSmallCache(unittest.TestCase):
         return result
 
     def runCases(self, cases, cache):
-        for (pattern, soln) in cases:
+        for (i, (pattern, soln)) in enumerate(cases):
+            sys.stderr.write("Case: %d\n" % i)
             result = self.runPattern(pattern, cache)
             #sys.stderr.write("result: %s\n" % result)
             soln_formatted = '\n'.join(soln).upper()
@@ -48,6 +60,7 @@ class TestSmallCache(unittest.TestCase):
             if not (result == soln_formatted):
                 resList = result.split('\n')
                 length = max(len(soln), len(resList))
+                sys.stderr.write('(soln, result)\n')
                 for (r, s) in zip(pad(soln, length), pad(resList, length)):
                     sys.stderr.write(str((r,s)))
                     if not r == s:
@@ -79,7 +92,7 @@ class TestSmallCache(unittest.TestCase):
         ]
         self.runCases(cases, cache)
     
-    def test_full(self):
+    def test_fill_cache(self):
         cache = NWayCache(5, 20, 4, 8, LRUPolicy())
         cache.set_parent(RAM())
 
@@ -92,6 +105,40 @@ class TestSmallCache(unittest.TestCase):
                 sequentialMemory('R', 0X00000000, totalCacheBlocks, 0X100)),
             (sequentialAccess('L', 0X00000000, totalCacheBlocks, 0X100, '')*3 + ['L 0XF0000000,1'], 
                 sequentialMemory('R', 0X00000000, totalCacheBlocks, 0X100) + ['R 0XF0000000'])
+        ]
+        self.runCases(cases, cache)
+
+    def test_sequential_access(self):
+        cache = NWayCache(1, 28, 3, 0, LRUPolicy())
+        cache.set_parent(RAM())
+
+        cases = [
+            (['L 0X00000000,17'], sequentialMemory('R', 0X00000000, 17, 0x1)),
+            # assuming the write happens before a read when a block is evicted
+            (['S 0X00000000,23'], 
+                sequentialMemory('R', 0X00000000, (2**3), 0x1) + \
+                list(alternate(sequentialMemory('W', 0X00000000, 23-(2**3), 0x1), 
+                               sequentialMemory('R', 0X00000008, 23-(2**3), 0x1))))
+        ]
+        self.runCases(cases, cache)
+
+    def test_writeback(self):
+        cache = NWayCache(3, 24, 4, 4, LRUPolicy())
+        cache.set_parent(RAM())
+
+        totalBlocks = 3*(2**4)
+
+        cases = [
+            (['L 0X00000000,16', 'S 0X00000000,16'] + sequentialAccess('L', 0x10000000, 3, 0x10000000, '16'),
+                ['R 0X00000000'] + sequentialMemory('R', 0X10000000, 2, 0X10000000) + ['W 0X00000000', 'R 0X30000000']),
+            
+            (sequentialAccess('L', 0x00000000, totalBlocks, 0x00000010, '') + 
+                    ['S 0X00000023,', 'M 0X00000003A,', 'S 0X00000077,'] + 
+                    sequentialAccess('L', 0X10000000, totalBlocks, 0x10, ''),
+                sequentialMemory('R', 0x00000000, totalBlocks, 0x10) +
+                sequentialMemory('R', 0x10000000, totalBlocks-3, 0x10) + 
+                list(alternate(['W 0X00000020', 'W 0X000000030', 'W 0X00000070'], 
+                               sequentialMemory('R', 0x10000000 + 0x10*(totalBlocks-3), 3, 0x10))))
         ]
         self.runCases(cases, cache)
 
