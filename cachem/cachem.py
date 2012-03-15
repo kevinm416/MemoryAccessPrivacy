@@ -294,7 +294,10 @@ class NehalemCache(object):
         self.L3_cache.clear()
 
 if __name__ == "__main__":
-    LOGGING_ENABLED = True
+    if os.environ.get("LOGGING", "false").lower() == "false":
+        LOGGING_ENABLED = False
+    else:
+        LOGGING_ENABLED = True
     cache = NehalemCache()
     for line in sys.stdin:
         if line.startswith("=="):
