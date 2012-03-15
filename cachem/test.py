@@ -71,10 +71,11 @@ class TestSmallCache(unittest.TestCase):
         cache.set_parent(RAM())
 
         cases = [
-            (sequentialAccess('L', 0X00000000, 5, 0X100, ''), sequentialMemory('R', 0X00000000, 5, 0X100)),
-            (sequentialAccess('L', 0X00000000, 5, 0X100, '')*3, sequentialMemory('R', 0X00000000, 5, 0X100)),
-            (sequentialAccess('L', 0X00000000, 5, 0X100, '')*3 + ['L 0XF0000000,1'], 
-                sequentialMemory('R', 0X00000000, 5, 0X100) + ['R 0XF0000000'])
+            (sequentialAccess('L', 0X00000000, 5, 0X10000, ''), sequentialMemory('R', 0X00000000, 5, 0X10000)),
+            (sequentialAccess('L', 0X00000000, 5, 0X10000, '')*3, sequentialMemory('R', 0X00000000, 5, 0X10000)),
+            (sequentialAccess('L', 0X00000000, 5, 0X10000, '')*3 + ['L 0XF0000000,1'], 
+                sequentialMemory('R', 0X00000000, 5, 0X10000) + ['R 0XF0000000']),
+            (sequentialAccess('L', 0X00000000, 6, 0X10000, '')*5, sequentialMemory('R', 0X00000000, 6, 0X10000)*5)
         ]
         self.runCases(cases, cache)
     
