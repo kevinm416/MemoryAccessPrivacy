@@ -43,27 +43,36 @@ c1Tests = [
     (sequentialAccess('L', 0x00000000, 5, 0x101, ''), sequentialMemory('R', 0x00000000, 5, 0x100)),
 
     ### Fill up the cache
-    (sequentialAccess('L', 0x00000000, (2**4)*5, 0x100, ''), sequentialMemory('R', 0x00000000, (2**4)*5, 0x100)),
-    (sequentialAccess('L', 0x00000000, (2**4)*5, 0x100, '')*3, sequentialMemory('R', 0x00000000, (2**4)*5, 0x100)),
-    (sequentialAccess('L', 0x00000000, (2**4)*5, 0x100, '')*3 + ['L 0xF0000000,1'], 
-        sequentialMemory('R', 0x00000000, (2**4)*5, 0x100) + ['R 0xF0000000'])
+    (sequentialAccess('L', 0x00000000, 5, 0x100, ''), sequentialMemory('R', 0x00000000, 5, 0x100)),
+    (sequentialAccess('L', 0x00000000, 5, 0x100, '')*3, sequentialMemory('R', 0x00000000, 5, 0x100)),
+    (sequentialAccess('L', 0x00000000, 5, 0x100, '')*3 + ['L 0xF0000000,1'], 
+        sequentialMemory('R', 0x00000000, 5, 0x100) + ['R 0xF0000000'])
 ]
 
 if __name__ == '__main__':
     old_stdout = sys.stdout
+    logFile = open("Errors.txt", 'w+')
+    errors = 0
 
-    cache = NehalemCache()
     for (pattern, soln) in c1Tests:
         sys.stdout = mystdout = StringIO()
-
+        c1.clear()
         refs = map(parse_reference, pattern)
         for ref in refs:
+            #sys.stderr.write(str(generate_accesses(ref)))
             c1.access(ref)
 
         mystdout.flush()
 
-        if not mystdout.getvalue().strip() == '\n'.join(soln):
-            raise Exception("'" + str(pattern) + "' generated: '" + mystdout.getvalue() + \
-                            "' does not equal: '" + '\n'.join(soln) + "'")
+        result = mystdout.getvalue().strip().lower()
+        solution = '\n'.join(soln).lower()
+        if not result == solution:
+            logFile.write("'" + str(pattern) + "' generated: '" + result + \
+                            "' does not equal: '" + solution + "'\n\n\n")
+            errors += 1
     
     sys.stdout = old_stdout
+    logFile.seek(0)
+    print "Errors:", errors
+    for line in logFile:
+        print line,
