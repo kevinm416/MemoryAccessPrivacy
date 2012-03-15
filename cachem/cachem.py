@@ -150,6 +150,18 @@ class NWayCache(object):
                     self.write_back(evicted)
             cache_set.add(block_id)
         self.policy.touch(block_id)
+    
+    def access(self, ref):
+        for (op, addr) in generate_accesses(ref, self.offset_bits, False):
+            #sys.stderr.write("%s %08x\n" % (op, addr))
+            if op == "I":
+                self.read(addr)
+            elif op == "R":
+                self.read(addr)
+            elif op == "W":
+                self.write(addr)
+            else:
+                raise Exception("Invalid operation: %s" % op)
 
 class RAM(object):
     def read(self, address):
@@ -219,8 +231,10 @@ class NehalemCache(object):
                 self.L1I_cache.read(addr)
             elif op == "R":
                 self.L1D_cache.read(addr)
-            else:
+            elif op == "W":
                 self.L1D_cache.write(addr)
+            else:
+                raise Exception("Invalid operation: %s" % op)
 
 if __name__ == "__main__":
     total_bits = 32

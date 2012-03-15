@@ -1,4 +1,4 @@
-from cachem import NehalemCache, parse_reference
+from cachem import *
 import sys
 from cStringIO import StringIO
 
@@ -34,39 +34,36 @@ l3Tests = [
     (sequentialAccess('L', 0x00000000, 17, 0x20000, 64)*5, sequentialMemory('R', 0x00000000, 17, 0x20000)*5)
     ]
 
-l2Tests = [
-    ### Alignment
-    (sequentialAccess('L', 0x00000000, 16, 0x41, ''), sequentialMemory('R', 0x00000000, 16, 0x40)),
+c1 = NWayCache(5, 20, 4, 8, LRUPolicy())
+c1.set_parent(RAM())
 
-    ### L2 Size
-    # Replace L3 by sequential scan. Need to look at 4096*64=16384=0x4000 bytes to fill up L3
-    (['L 0x00000000,16384'], ['0x00000000']),
-    (['L 0x00000000,16385'], ['0x00000000', '0x00004000']),
-    
-    ### L2 8 way associativity
-    # Filling up one associative set should only result in 16 memory accesses
-    #(sequentialAccess('L', 0x00000000, 16, 0x20000, 64), sequentialMemory('R', 0x00000000, 16, 0x20000)),
-    # Accessing things in the set multiple times should not result in extra memory accesses
-    #(sequentialAccess('L', 0x00000000, 16, 0x20000, 64)*2, sequentialMemory('R', 0x00000000, 16, 0x20000)),
-    # Accessing a sequence of 17 blocks that all map to different rows in the cache
-    # should have to go to disk every time
-    #(sequentialAccess('L', 0x00000000, 17, 0x20000, 64)*5, sequentialMemory('R', 0x00000000, 17, 0x20000)*5)
-    ]
+c1Tests = [
+    ### Alignment
+    (sequentialAccess('L', 0x00000000, 1, 0x101, ''), sequentialMemory('R', 0x00000000, 1, 0x100)),
+    (sequentialAccess('L', 0x00000000, 5, 0x101, ''), sequentialMemory('R', 0x00000000, 5, 0x100)),
+
+    ### Fill up the cache
+    (sequentialAccess('L', 0x00000000, (2**4)*5, 0x100, ''), sequentialMemory('R', 0x00000000, (2**4)*5, 0x100)),
+    (sequentialAccess('L', 0x00000000, (2**4)*5, 0x100, '')*3, sequentialMemory('R', 0x00000000, (2**4)*5, 0x100)),
+    (sequentialAccess('L', 0x00000000, (2**4)*5, 0x100, '')*3 + ['L 0xF0000000,1'], 
+        sequentialMemory('R', 0x00000000, (2**4)*5, 0x100) + ['R 0xF0000000'])
+]
 
 if __name__ == '__main__':
     old_stdout = sys.stdout
 
     cache = NehalemCache()
-    for (pattern, soln) in l3Tests:
+    for (pattern, soln) in c1Tests:
         sys.stdout = mystdout = StringIO()
 
         refs = map(parse_reference, pattern)
         for ref in refs:
-            cache.access(ref)
+            c1.access(ref)
 
         mystdout.flush()
 
         if not mystdout.getvalue().strip() == '\n'.join(soln):
-            raise Exception("'" + mystdout.getvalue() + "' does not equal: '" + '\n'.join(soln) + "'")
+            raise Exception("'" + str(pattern) + "' generated: '" + mystdout.getvalue() + \
+                            "' does not equal: '" + '\n'.join(soln) + "'")
     
     sys.stdout = old_stdout
