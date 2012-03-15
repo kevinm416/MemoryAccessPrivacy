@@ -1,7 +1,15 @@
+#!/usr/bin/env python
 from cachem import *
 import sys
 from cStringIO import StringIO
 import unittest
+
+def pad(iterable, length, padding=''):
+    for count, i in enumerate(iterable):
+        yield i
+    while count < length - 1:
+        count += 1
+        yield padding
 
 ### Nehalem Specs
 # block size 64 bytes = 0X40
@@ -15,25 +23,6 @@ def sequentialAccess(inst, start, count, inc, seq):
 
 def sequentialMemory(inst, start, count, inc):
     return [inst + ' 0X%08X' % (X*inc + start) for X in xrange(0, count)]
-
-l3Tests = [
-    ### Alignment
-    (sequentialAccess('L', 0X00000000, 16, 0X41, ''), sequentialMemory('R', 0X00000000, 16, 0X40)),
-
-    ### L3 Size
-    # Replace L3 by sequential scan. Need to look at 131072*64=8388608=0X800000 bytes to fill up L3
-    (['L 0X00000000,8388608'], ['0X00000000']),
-    (['L 0X00000000,8388609'], ['0X00000000', '0X00800000']),
-    
-    ### L3 16 way associativity
-    # Filling up one associative set should only result in 16 memory accesses
-    (sequentialAccess('L', 0X00000000, 16, 0X20000, 64), sequentialMemory('R', 0X00000000, 16, 0X20000)),
-    # Accessing things in the set multiple times should not result in eXtra memory accesses
-    (sequentialAccess('L', 0X00000000, 16, 0X20000, 64)*2, sequentialMemory('R', 0X00000000, 16, 0X20000)),
-    # Accessing a sequence of 17 blocks that all map to different rows in the cache
-    # should have to go to disk every time
-    (sequentialAccess('L', 0X00000000, 17, 0X20000, 64)*5, sequentialMemory('R', 0X00000000, 17, 0X20000)*5)
-    ]
 
 class TestSmallCache(unittest.TestCase):
 
@@ -57,17 +46,15 @@ class TestSmallCache(unittest.TestCase):
             soln_formatted = '\n'.join(soln).upper()
 
             if not (result == soln_formatted):
-                for (r, s) in zip(soln, result.split('\n')):
+                resList = result.split('\n')
+                length = max(len(soln), len(resList))
+                for (r, s) in zip(pad(soln, length), pad(resList, length)):
                     sys.stderr.write(str((r,s)))
                     if not r == s:
                         sys.stderr.write(' <----------------')
                     sys.stderr.write('\n')
 
             self.assertEquals(result, soln_formatted)
-                # "'" + '\n'.join(pattern) + 
-                # "' \ngenerated: \n'" + result + 
-                # "' \ndoes not equal: \n'" + soln_formatted + 
-                # "'\n\n\n")
 
     def test_alignment(self):
         cache = NWayCache(5, 20, 4, 8, LRUPolicy())

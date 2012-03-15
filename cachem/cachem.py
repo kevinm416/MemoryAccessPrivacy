@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 import collections
+import os
 import sys
+
+if os.environ.get("LOGGING", "false").lower() == "true":
+    LOGGING_ENABLED = True
+else:
+    LOGGING_ENABLED = False
 
 def parse_reference(line):
     """
@@ -79,6 +85,7 @@ class NWayCache(object):
         self.dirty = set()
 
         self.parent = None
+        self.name = repr(self)
 
     def clear(self):
         """
@@ -94,6 +101,16 @@ class NWayCache(object):
         when it has a miss or writes a block back.
         """
         self.parent = parent
+
+    def set_name(self, name):
+        """
+        Set the name used for debugging purposes.
+        """
+        self.name = name
+
+    def log(self, s):
+        if LOGGING_ENABLED:
+            sys.stderr.write("%s:%s\n" % (self.name, s))
 
     def lookup_block(self, address):
         """
@@ -114,10 +131,12 @@ class NWayCache(object):
         """
         
         cache_set, present = self.lookup_block(address)
-        if not present:
-            self.read(address)
-
         block_id = address & self.id_mask
+        if not present:
+            self.log("write miss on %#010x -- allocating" % block_id)
+            self.read(address)
+        else:
+            self.log("write hit on %#010x" % block_id)
 
         self.policy.touch(block_id)
         self.dirty.add(block_id)
@@ -139,14 +158,21 @@ class NWayCache(object):
         block_id = address & self.id_mask
         cache_set, present = self.lookup_block(address)
         if not present:
+            self.log("read miss on %#010x" % block_id)
             if len(cache_set) == self.associativity:
                 evicted = self.policy.evict(cache_set)
                 cache_set.remove(evicted)
                 if evicted in self.dirty:
+                    self.log("  capacity conflict -- evicted %#010x (dirty) -- writing back" % evicted)
                     self.dirty.remove(evicted)
                     self.write_back(evicted)
+                else:
+                    self.log("  capacity conflict -- evicted %#010x (clean)" % evicted)
+            self.log("  reading from parent")
             self.parent.read(block_id)
             cache_set.add(block_id)
+        else:
+            self.log("read hit on %#010x" % block_id)
         self.policy.touch(block_id)
     
     def access(self, ref):
@@ -170,10 +196,10 @@ class RAM(object):
     actually simulating anything
     """
     def read(self, address):
-        sys.stdout.write("R 0x%08x\n" % address)
+        sys.stdout.write("R %#010x\n" % address)
 
     def write(self, address):
-        sys.stdout.write("W 0x%08x\n" % address)
+        sys.stdout.write("W %#010x\n" % address)
 
 class LRUPolicy(object):
     """
@@ -244,6 +270,11 @@ class NehalemCache(object):
         self.L1D_cache.set_parent(self.L2_cache)
         self.L2_cache.set_parent(self.L3_cache)
         self.L3_cache.set_parent(self.ram)
+
+        self.L1I_cache.set_name("L1I")
+        self.L1D_cache.set_name("L1D")
+        self.L2_cache.set_name("L2")
+        self.L3_cache.set_name("L3")
     
     def access(self, ref):
         for (op, addr) in generate_accesses(ref, self.offset_bits, False):
@@ -256,40 +287,17 @@ class NehalemCache(object):
             else:
                 raise Exception("Invalid operation: %s" % op)
 
+    def clear(self):
+        self.L1I_cache.clear()
+        self.L1D_cache.clear()
+        self.L2_cache.clear()
+        self.L3_cache.clear()
+
 if __name__ == "__main__":
-    total_bits = 32
-    offset_bits = 6
-
-    L1I_cache = NWayCache(4, total_bits - 7 - offset_bits, 7, offset_bits,
-                          LRUPolicy())
-    L1D_cache = NWayCache(8, total_bits - 6 - offset_bits, 6, offset_bits,
-                          LRUPolicy())
-
-    L2_cache = NWayCache(8, total_bits - 12 - offset_bits, 12, offset_bits,
-                         LRUPolicy())
-
-    #The replacement policy for L3 is not disclosed in the textbook...
-    L3_cache = NWayCache(16, total_bits - 17 - offset_bits, 17, offset_bits,
-                         LRUPolicy())
-
-    ram = RAM()
-    
-    
-    L1I_cache.set_parent(L2_cache)
-    L1D_cache.set_parent(L2_cache)
-    L2_cache.set_parent(L3_cache)
-    L3_cache.set_parent(ram)
-
+    LOGGING_ENABLED = True
+    cache = NehalemCache()
     for line in sys.stdin:
         if line.startswith("=="):
             continue
         ref = parse_reference(line)
-        for (op, addr) in generate_accesses(ref, offset_bits, False):
-            #print op, "%08x" % addr
-            if op == "I":
-                L1I_cache.read(addr)
-            elif op == "R":
-                L1D_cache.read(addr)
-            else:
-                L1D_cache.write(addr)
-
+        cache.access(ref)
