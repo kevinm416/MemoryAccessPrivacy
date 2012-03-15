@@ -1,0 +1,3 @@
+# Don't bother with compiled bytecode files
+*.pyo
+*.pyc
