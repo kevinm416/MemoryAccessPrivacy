@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 import collections
+import os
 import sys
+
+if os.environ.get("LOGGING", "false").lower() == "true":
+    LOGGING_ENABLED = True
+else:
+    LOGGING_ENABLED = False
 
 def parse_reference(line):
     """
@@ -103,7 +109,8 @@ class NWayCache(object):
         self.name = name
 
     def log(self, s):
-        sys.stderr.write("%s:%s\n" % (self.name, s))
+        if LOGGING_ENABLED:
+            sys.stderr.write("%s:%s\n" % (self.name, s))
 
     def lookup_block(self, address):
         """
@@ -287,6 +294,7 @@ class NehalemCache(object):
         self.L3_cache.clear()
 
 if __name__ == "__main__":
+    LOGGING_ENABLED = True
     cache = NehalemCache()
     for line in sys.stdin:
         if line.startswith("=="):
