@@ -110,7 +110,7 @@ class NWayCache(object):
 
     def log(self, s):
         if LOGGING_ENABLED:
-            sys.stderr.write("%s:%s\n" % (self.name, s))
+            sys.stderr.write("%s:\t%s\n" % (self.name, s))
 
     def lookup_block(self, address):
         """
@@ -133,10 +133,10 @@ class NWayCache(object):
         cache_set, present = self.lookup_block(address)
         block_id = address & self.id_mask
         if not present:
-            self.log("write miss on %#010x -- allocating" % block_id)
+            self.log("write miss on %#010x in index %#x -- allocating" % (block_id, (address & self.index_mask) >> self.offset_bits))
             self.read(address)
         else:
-            self.log("write hit on %#010x" % block_id)
+            self.log("write hit on %#010x in index %#x" % (block_id, (address & self.index_mask) >> self.offset_bits))
 
         self.policy.touch(block_id)
         self.dirty.add(block_id)
@@ -158,10 +158,10 @@ class NWayCache(object):
         block_id = address & self.id_mask
         cache_set, present = self.lookup_block(address)
         if not present:
-            self.log("read miss on %#010x" % block_id)
+            self.log("read miss on %#010x in index %#x" % (block_id, index >> self.offset_bits))
             if len(cache_set) == self.associativity:
-                evicted = self.policy.evict(cache_set)
-                cache_set.remove(evicted)
+                evicted = self.policy.evict([(tag | index) for tag in cache_set])
+                cache_set.remove(evicted & self.tag_mask)
                 if evicted in self.dirty:
                     self.log("  capacity conflict -- evicted %#010x (dirty) -- writing back" % evicted)
                     self.dirty.remove(evicted)
@@ -170,9 +170,9 @@ class NWayCache(object):
                     self.log("  capacity conflict -- evicted %#010x (clean)" % evicted)
             self.log("  reading from parent")
             self.parent.read(block_id)
-            cache_set.add(block_id)
+            cache_set.add(address & self.tag_mask)
         else:
-            self.log("read hit on %#010x" % block_id)
+            self.log("read hit on %#010x in index %#x" % (block_id, index >> self.offset_bits))
         self.policy.touch(block_id)
     
     def access(self, ref):
