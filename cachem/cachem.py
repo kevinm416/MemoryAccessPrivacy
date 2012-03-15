@@ -165,7 +165,7 @@ class NWayCache(object):
             self.parent.read(block_id)
             cache_set.add(block_id)
         else:
-            self.log("read hit on %#010x\n" % block_id)
+            self.log("read hit on %#010x" % block_id)
         self.policy.touch(block_id)
     
     def access(self, ref):
