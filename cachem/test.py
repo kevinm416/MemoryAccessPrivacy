@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from cachem import *
 import sys
 from cStringIO import StringIO
@@ -52,7 +53,6 @@ c1Tests = [
 if __name__ == '__main__':
     old_stdout = sys.stdout
 
-    cache = NehalemCache()
     for (pattern, soln) in c1Tests:
         sys.stdout = mystdout = StringIO()
 
@@ -62,8 +62,12 @@ if __name__ == '__main__':
 
         mystdout.flush()
 
-        if not mystdout.getvalue().strip() == '\n'.join(soln):
+        if mystdout.getvalue().strip() == '\n'.join(soln):
+            print "Test passed"
+        else:
+            print "Test failed"
             raise Exception("'" + str(pattern) + "' generated: '" + mystdout.getvalue() + \
                             "' does not equal: '" + '\n'.join(soln) + "'")
+        c1.clear()
     
     sys.stdout = old_stdout
