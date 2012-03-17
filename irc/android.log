@@ -1,0 +1,20 @@
+--- Log opened Fri Mar 16 17:06:49 2012
+03/16/12_17:06:49 -!- ttl3847 [~kevin@airbears-136-152-39-208.AirBears.Berkeley.EDU] has joined #android-dev
+03/16/12_17:06:50 -!- Irssi: #android-dev: Total of 632 nicks [5 ops, 0 halfops, 0 voices, 627 normal]
+03/16/12_17:06:50 -!- Irssi: Join to #android-dev was synced in 1 secs
+03/16/12_17:06:54 -!- JeZ-I-Lee [~JeZ-I-Lee@ool-18bcc2ed.dyn.optonline.net] has quit [Quit: Leaving]
+03/16/12_17:07:11 -!- JeZ-I-Lee [~JeZ-I-Lee@ool-18bcc2ed.dyn.optonline.net] has joined #android-dev
+03/16/12_17:07:38 -!- t_pol [THE_DUDE@unaffiliated/tpol/x-1290937453] has quit [Ping timeout: 245 seconds]
+03/16/12_17:09:07 < g00s> anyone read this ? http://shop.oreilly.com/product/0636920013716.do?code=OPC10
+03/16/12_17:09:56 -!- heymaste_ [~heymaster@78.61.212.188] has quit [Remote host closed the connection]
+03/16/12_17:10:25  * g00s peruses the oreilly catalog
+03/16/12_17:10:32 < g00s> huh, wtf is this http://shop.oreilly.com/product/0636920022930.do
+03/16/12_17:10:40 -!- drumr [~drumr@ip72-222-244-87.ph.ph.cox.net] has joined #android-dev
+03/16/12_17:10:41 < g00s> never heard of HealthVault
+03/16/12_17:12:11 -!- userx- [~0x-@unaffiliated/userx-] has joined #android-dev
+03/16/12_17:13:58 -!- paulove [~Paul-Ove@85.112.128.136] has joined #android-dev
+03/16/12_17:14:29 -!- paulove [~Paul-Ove@85.112.128.136] has quit [Client Quit]
+03/16/12_17:15:12 -!- paulove [~Paul-Ove@85.112.128.136] has joined #android-dev
+03/16/12_17:15:32 -!- drumr [~drumr@ip72-222-244-87.ph.ph.cox.net] has quit [Ping timeout: 260 seconds]
+03/16/12_17:16:32  * g00s buys Oreilly "Designing Mobile Interfaces" and "Mobile Design Pattern Gallery" :"D
+03/16/12_17:17:07 -!- terranova [~terranova@aczr67.neoplus.adsl.tpnet.pl] has joined #android-dev
