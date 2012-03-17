@@ -197,9 +197,13 @@ class RAM(object):
     """
     def read(self, address):
         sys.stdout.write("R %#010x\n" % address)
+        if LOGGING_ENABLED:
+            sys.stderr.write("RAM: R %#010x\n" % address)
 
     def write(self, address):
         sys.stdout.write("W %#010x\n" % address)
+        if LOGGING_ENABLED:
+            sys.stderr.write("RAM: W %#010x\n" % address)
 
 class LRUPolicy(object):
     """
@@ -294,13 +298,16 @@ class NehalemCache(object):
         self.L3_cache.clear()
 
 if __name__ == "__main__":
-    if os.environ.get("LOGGING", "false").lower() == "false":
-        LOGGING_ENABLED = False
-    else:
-        LOGGING_ENABLED = True
     cache = NehalemCache()
     for line in sys.stdin:
         if line.startswith("=="):
             continue
-        ref = parse_reference(line)
+        try:
+            ref = parse_reference(line)
+        except:
+            sys.stderr.write("Error parsing lackey memory reference:\n")
+            sys.stderr.write(line)
+            import traceback
+            traceback.print_exc(3, sys.stderr)
+            sys.exit(0)
         cache.access(ref)

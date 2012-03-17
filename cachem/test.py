@@ -69,6 +69,7 @@ class TestSmallCache(unittest.TestCase):
 
             self.assertEquals(result, soln_formatted)
 
+
     def test_alignment(self):
         cache = NWayCache(5, 20, 4, 8, LRUPolicy())
         cache.set_parent(RAM())
@@ -123,23 +124,45 @@ class TestSmallCache(unittest.TestCase):
         self.runCases(cases, cache)
 
     def test_writeback(self):
-        cache = NWayCache(3, 24, 4, 4, LRUPolicy())
+        Nset = 3
+        cache = NWayCache(Nset, 24, 4, 4, LRUPolicy())
         cache.set_parent(RAM())
+        cache.set_name(" L3")
 
         totalBlocks = 3*(2**4)
 
         cases = [
-            (['L 0X00000000,16', 'S 0X00000000,16'] + sequentialAccess('L', 0x10000000, 3, 0x10000000, '16'),
-                ['R 0X00000000'] + sequentialMemory('R', 0X10000000, 2, 0X10000000) + ['W 0X00000000', 'R 0X30000000']),
+            # Case 1
+            (
+                # Input
+                ['L 0X00000000,16', 'S 0X00000000,16'] +                      # Load data at location 0x0000 0000 in cache
+                sequentialAccess('L', 0x10000000, 3, 0x10000000, '16'),       # Flood the cache with similar indexed-address and kick out 0x0000 0000
+                # Output
+                ['R 0X00000000'] + sequentialMemory('R', 0X10000000, 2, 0X10000000) +
+                ['W 0X00000000', 'R 0X30000000']),                            # Should create cache conflict with 0x0000 0000 and 0x3000 0000
             
-            (sequentialAccess('L', 0x00000000, totalBlocks, 0x00000010, '') + 
-                    ['S 0X00000023,', 'M 0X00000003A,', 'S 0X00000077,'] + 
-                    sequentialAccess('L', 0X10000000, totalBlocks, 0x10, ''),
-                sequentialMemory('R', 0x00000000, totalBlocks, 0x10) +
-                sequentialMemory('R', 0x10000000, totalBlocks-3, 0x10) + 
-                list(alternate(['W 0X00000020', 'W 0X000000030', 'W 0X00000070'], 
-                               sequentialMemory('R', 0x10000000 + 0x10*(totalBlocks-3), 3, 0x10))))
-        ]
+            # Case 2
+            (
+                # Input
+                sequentialAccess('L', 0x00000000, totalBlocks, 0x00000010, '') +     # Fill all spots on the cache
+                ['S 0X00000023,', 'M 0X00000003A,', 'S 0X00000077,'] +               # Touch these locations in the cache
+                sequentialAccess('L', 0X10000000, totalBlocks, 0x10, ''),            # Kick out the filled locations except the ones above
+                # Output
+                sequentialMemory('R', 0x00000000, totalBlocks, 0x10) +                            # Read in data to fill cache
+                sequentialMemory('R', 0x10000000, totalBlocks/Nset * (Nset-1), 0x10) +            # Read in more data that fills the cache
+                sequentialMemory('R', 0x10000000 + totalBlocks/Nset * (Nset-1) * 0x10, 2, 0x10) +
+                ['W 0X00000020', 
+                 'R 0X%x' % (0x10000000 + totalBlocks/Nset * (Nset-1) * 0x10 + 0x20),
+                 'W 0X00000030',
+                 'R 0X%x' % (0x10000000 + totalBlocks/Nset * (Nset-1) * 0x10 + 0x30)] +
+                sequentialMemory('R', 0x10000000 + totalBlocks/Nset * (Nset-1) * 0x10 + 0x40, 3, 0x10) +
+                ['W 0X00000070',
+                 'R 0X%x' % (0x10000000 + totalBlocks/Nset * (Nset-1) * 0x10 + 0x70)] +
+                sequentialMemory('R', 0x10000000 + totalBlocks/Nset * (Nset-1) * 0x10 + 0x80, 8, 0x10)
+#                list(alternate(['W 0X00000020', 'W 0X00000030', 'W 0X00000070'], 
+#                               sequentialMemory('R', 0x10000000 + 0x10*(totalBlocks-3), 3, 0x10))))
+                )
+            ]
         self.runCases(cases, cache)
 
 if __name__ == '__main__':
