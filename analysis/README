@@ -1,0 +1,22 @@
+== Analysis Tools ==
+
+=== plot.py ===
+plot.py takes in a trace file via stdin, finds all unique pages that are
+accessed, and then renders a plot showing which pages are being touched
+in each time interval. Currently, it just takes N memory accesses and groups
+them into one time-step, but it will eventually support grouping by events.
+
+Each column represents one timestep and each row represents one 4KB page. Since
+most memory accesses are very sparsely populated, intervening pages that are
+never accessed are omitted - this is not a to-scale representation of the
+entire virtual memory space.
+
+Pages are sorted by address in descending order, so that pages at the top
+roughly correspond to the stack, and pages at the bottom roughly correspond
+to the code/text/heap. 
+
+At each timestep, if a page is accessed in multiple ways, its color is
+determined by the relative ratio of the memory accesses. red indicates a data
+read, green indicates a data write, and blue indicates an instruction read.
+If both read and write operations occur on the same page during a single
+timestep, the color is proportional to the number of operations of each type.
