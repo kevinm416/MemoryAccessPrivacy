@@ -133,6 +133,7 @@ if __name__ == "__main__":
     chunk_size = int(sys.argv[1])
     output_filename = sys.argv[2]
 
+    print "Working..."
 
     block_accesses = list(memory_access_blocks(sys.stdin))
     #pages = mark_region_accesses(block_accesses)
@@ -142,9 +143,12 @@ if __name__ == "__main__":
     
     #print len(x)
 
+    print "Done reading memory accesses"
+
     pages = mark_region_accesses(block_accesses)
     unique_pages = sorted(list(set(addr for (addr, access_type) in pages)))
 
+    print "Done processing unique accesses"
 
     row_count = 0
     row_map = {}
@@ -158,6 +162,8 @@ if __name__ == "__main__":
         row_count += 1
         prev = page
 
+    print "Done partitioning segments"
+    
 
     num_chunks = len(block_accesses)/chunk_size + 1
 
@@ -170,11 +176,17 @@ if __name__ == "__main__":
             ir = accessed_pages[(page, "INST_READ")]
             total = dr + dw + ir
             if total:
-                im.putpixel((i, row_map[page]), (int(255.0*dr/total), int(255.0*dw/total), int(255.0*ir/total)))
+                im.putpixel((i, row_map[page]), (int(255.0*dr/total), int(255.0*ir/total), int(255.0*dw/total)))
+    
+    print "Done rendering bitmap"
+
     im.save(output_filename)
+
+    print "Image output to %s" % output_filename
+
     print "RED   is Data Read"
-    print "GREEN is Data Write"
-    print "BLUE  is Instruction Read"
+    print "BLUE  is Data Write"
+    print "GREEN is Instruction Read"
 
     #Red is data reads, Green is data writes, Blue is Instruction reads
 
