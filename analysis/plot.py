@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import sys
 import Image
+import math
 from collections import defaultdict
 access_mapping = {"ir": "INST_READ",
                   "dr": "DATA_READ",
@@ -153,7 +154,7 @@ if __name__ == "__main__":
         row_map[page] = row_count
         if (prev - page) >> 12 > 256:
             #print hex(prev), hex(page), (page - prev) >> 12
-            row_count += 10
+            row_count += int(math.log(prev-page, 10) * 5)
         row_count += 1
         prev = page
 
@@ -171,6 +172,9 @@ if __name__ == "__main__":
             if total:
                 im.putpixel((i, row_map[page]), (int(255.0*dr/total), int(255.0*dw/total), int(255.0*ir/total)))
     im.save(output_filename)
+    print "RED   is Data Read"
+    print "GREEN is Data Write"
+    print "BLUE  is Instruction Read"
 
     #Red is data reads, Green is data writes, Blue is Instruction reads
 
