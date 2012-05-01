@@ -169,7 +169,7 @@ if __name__ == "__main__":
             ir = accessed_pages[(page, "INST_READ")]
             total = dr + dw + ir
             if total:
-                im.putpixel((i, row_map[page]), (255.0*dr/total, 255.0*dw/total, 255.0*ir/total))
+                im.putpixel((i, row_map[page]), (int(255.0*dr/total), int(255.0*dw/total), int(255.0*ir/total)))
     im.save(output_filename)
 
     #Red is data reads, Green is data writes, Blue is Instruction reads
